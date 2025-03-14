@@ -60,10 +60,10 @@ const Index = () => {
                 </button>
               </div>
               
-              <div className={`mt-16 animate-bounce ${isScrolled ? 'opacity-0' : 'opacity-70'} transition-opacity`}>
+              <div className={`mt-16 ${isScrolled ? 'opacity-0' : 'opacity-70'} transition-opacity`}>
                 <button 
                   onClick={scrollToForm}
-                  className="p-3 rounded-full bg-white/80 border border-neutral-200/50 shadow-sm"
+                  className="p-3 rounded-full bg-white/80 border border-neutral-200/50 shadow-sm animate-bounce"
                   aria-label="Scroll down"
                 >
                   <ArrowDown className="h-5 w-5 text-primary/60" />
