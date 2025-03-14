@@ -3,8 +3,8 @@ import Footer from "@/components/layout/Footer";
 import PortfolioForm from "@/components/forms/PortfolioForm";
 import PortfolioPreview from "@/components/preview/PortfolioPreview";
 import { PortfolioProvider, usePortfolio } from "@/contexts/PortfolioContext";
-import { ArrowDown, Sparkles, Zap, Globe, Code, Laptop, Palette, Layout, Layers, CheckCircle, Users, RefreshCw, Download } from "lucide-react";
-import { useRef, useState, useEffect } from "react";
+import { ArrowDown, Sparkles, Zap, Globe, Code, Laptop, Palette, Layout, Layers, CheckCircle, Users, RefreshCw, Download, FileText, ChevronDown } from "lucide-react";
+import { useRef, useState, useEffect, useCallback } from "react";
 
 // Create a wrapper component that efficiently tracks portfolio changes
 const LivePreviewWrapper = ({ children }) => {
@@ -72,13 +72,16 @@ const LivePreviewWrapper = ({ children }) => {
   );
 };
 
-// Export functionality component
+// Enhanced ExportButton component with PDF support
 const ExportButton = () => {
   const { portfolio } = usePortfolio();
   const [isExporting, setIsExporting] = useState(false);
-  
-  const handleExport = () => {
+  const [exportType, setExportType] = useState<"html" | "pdf">("html");
+  const [showOptions, setShowOptions] = useState(false);
+
+  const exportAsHTML = useCallback(() => {
     setIsExporting(true);
+    setExportType("html");
     
     // Generate a basic HTML file with the portfolio content
     setTimeout(() => {
@@ -168,22 +171,293 @@ const ExportButton = () => {
       URL.revokeObjectURL(url);
       setIsExporting(false);
     }, 800);
-  };
+  }, [portfolio]);
   
+  // Completely redesigned PDF export function to fix empty PDF issues
+  const exportAsPDF = useCallback(async () => {
+    setIsExporting(true);
+    setExportType("pdf");
+    
+    try {
+      // Force clean any previous PDF containers that might exist
+      const oldContainer = document.getElementById('pdf-export-container');
+      if (oldContainer) {
+        document.body.removeChild(oldContainer);
+      }
+      
+      // Create a full-page overlay with loading indicator
+      const overlay = document.createElement('div');
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(255,255,255,0.8)';
+      overlay.style.zIndex = '9999';
+      overlay.style.display = 'flex';
+      overlay.style.flexDirection = 'column';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.innerHTML = `
+        <div style="text-align: center">
+          <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+          <p style="font-family: sans-serif; color: #333;">Generating PDF...</p>
+          <p style="font-family: sans-serif; color: #666; font-size: 14px; margin-top: 10px;">Please wait, this may take a few moments</p>
+          <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      
+      // Load the PDF library directly from CDN
+      await new Promise((resolve, reject) => {
+        if (window.jspdf && window.html2canvas) {
+          resolve(null);
+          return;
+        }
+        
+        // Load html2canvas first
+        const html2canvasScript = document.createElement('script');
+        html2canvasScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        html2canvasScript.onload = () => {
+          // Then load jsPDF
+          const jspdfScript = document.createElement('script');
+          jspdfScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          jspdfScript.onload = resolve;
+          jspdfScript.onerror = reject;
+          document.head.appendChild(jspdfScript);
+        };
+        html2canvasScript.onerror = reject;
+        document.head.appendChild(html2canvasScript);
+      });
+      
+      // Create content container
+      const container = document.createElement('div');
+      container.id = 'pdf-export-container';
+      container.style.width = '800px';
+      container.style.margin = '0 auto';
+      container.style.padding = '40px';
+      container.style.backgroundColor = 'white';
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.fontFamily = 'Arial, sans-serif';
+      
+      // Generate the static HTML content
+      container.innerHTML = `
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h1 style="font-size: 28px; margin-bottom: 10px;">${portfolio.name || 'Portfolio'}</h1>
+          <p style="font-size: 18px; color: #555;">${portfolio.title || ''}</p>
+        </div>
+        
+        <div style="margin-bottom: 25px;">
+          <h2 style="font-size: 22px; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px;">About Me</h2>
+          <p style="line-height: 1.6;">${portfolio.bio || 'No bio information provided.'}</p>
+        </div>
+        
+        <div style="margin-bottom: 25px;">
+          <h2 style="font-size: 22px; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Skills</h2>
+          <div style="margin-top: 10px;">
+            ${portfolio.skills && portfolio.skills.length > 0 ? 
+              portfolio.skills.map(skill => 
+                `<div style="display: inline-block; background-color: #f3f4f6; padding: 5px 10px; margin: 5px; border-radius: 15px;">
+                  ${skill.name} - ${skill.level}%
+                </div>`
+              ).join('') : 
+              '<p>No skills listed yet.</p>'
+            }
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 25px;">
+          <h2 style="font-size: 22px; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px;">Projects</h2>
+          <div>
+            ${portfolio.projects && portfolio.projects.length > 0 ? 
+              portfolio.projects.map(project => 
+                `<div style="border: 1px solid #eee; padding: 15px; margin-bottom: 15px; border-radius: 5px;">
+                  <h3 style="font-size: 18px; margin-top: 0; margin-bottom: 10px;">${project.title}</h3>
+                  <p style="margin-bottom: 10px;">${project.description}</p>
+                  <div>
+                    ${project.tags?.map(tag => 
+                      `<span style="display: inline-block; background-color: #f3f4f6; padding: 3px 8px; margin-right: 5px; margin-bottom: 5px; border-radius: 4px; font-size: 12px;">
+                        ${tag}
+                      </span>`
+                    ).join('') || ''}
+                  </div>
+                  ${project.link ? `<p style="margin-top: 10px; font-size: 14px; color: blue;">Project Link: ${project.link}</p>` : ''}
+                </div>`
+              ).join('') :
+              '<p>No projects added yet.</p>'
+            }
+          </div>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #eee; text-align: center;">
+          <h2 style="font-size: 18px; margin-bottom: 10px;">Contact Information</h2>
+          ${portfolio.socialLinks && portfolio.socialLinks.length > 0 ? 
+            portfolio.socialLinks.map(link => 
+              `<p style="margin: 5px 0;"><strong>${link.platform}:</strong> ${link.url}</p>`
+            ).join('') : 
+            '<p>No contact information provided.</p>'
+          }
+          <p style="margin-top: 20px; color: #999; font-size: 12px;">Created with Portfolio Crafter</p>
+        </div>
+      `;
+      
+      document.body.appendChild(container);
+      
+      // Wait a bit to ensure the content renders
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      try {
+        // Use html2canvas and jsPDF directly
+        const canvas = await window.html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          logging: false
+        });
+        
+        // Create PDF with proper dimensions
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 297; // A4 height in mm
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        const heightLeft = imgHeight;
+        
+        const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+        pdf.addImage(canvas, 'PNG', 0, 0, imgWidth, imgHeight, '', 'FAST');
+        
+        // Handle multi-page content if needed
+        let position = 0;
+        let remainingHeight = heightLeft;
+        
+        while (remainingHeight > 0) {
+          position += pageHeight;
+          remainingHeight -= pageHeight;
+          
+          // Add new page if there's more content
+          if (remainingHeight > 0) {
+            pdf.addPage();
+            pdf.addImage(canvas, 'PNG', 0, -position, imgWidth, imgHeight, '', 'FAST');
+          }
+        }
+        
+        // Save PDF with portfolio name or default name
+        const filename = `${(portfolio.name || 'portfolio').toLowerCase().replace(/\s+/g, '-')}-portfolio.pdf`;
+        pdf.save(filename);
+        
+        console.log("PDF generated successfully");
+      } catch (error) {
+        console.error("Error rendering PDF:", error);
+        alert("Failed to generate PDF. Please try again or use the HTML export option.");
+      }
+      
+      // Clean up
+      document.body.removeChild(container);
+      document.body.removeChild(overlay);
+      setIsExporting(false);
+    } catch (error) {
+      console.error("PDF export error:", error);
+      alert("An error occurred while generating the PDF. Please try again later.");
+      
+      // Make sure to remove the overlay if it exists
+      const overlay = document.querySelector('div[style*="position: fixed"]');
+      if (overlay && overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+      
+      setIsExporting(false);
+    }
+  }, [portfolio]);
+  
+  // Updated library loading function
+  const loadPdfLibrary = async () => {
+    return new Promise((resolve, reject) => {
+      try {
+        // Check if library is already loaded
+        if (window.html2pdf) {
+          console.log("html2pdf library already loaded");
+          resolve(true);
+          return;
+        }
+        
+        console.log("Loading html2pdf library");
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.async = true;
+        
+        script.onload = () => {
+          // Check if library loaded correctly
+          if (window.html2pdf) {
+            console.log("html2pdf library loaded successfully");
+            resolve(true);
+          } else {
+            console.error("html2pdf object not available after script load");
+            reject(new Error("html2pdf did not load correctly"));
+          }
+        };
+        
+        script.onerror = (e) => {
+          console.error("Error loading html2pdf script:", e);
+          reject(new Error("Failed to load html2pdf library"));
+        };
+        
+        document.head.appendChild(script);
+      } catch (error) {
+        console.error("Error in loadPdfLibrary:", error);
+        reject(error);
+      }
+    });
+  };
+
   return (
-    <button 
-      onClick={handleExport} 
-      disabled={isExporting}
-      className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
-    >
-      {isExporting ? (
-        <>Exporting... <RefreshCw className="h-3 w-3 animate-spin" /></>
-      ) : (
-        <>Export <Download className="h-3 w-3" /></>
+    <div className="relative">
+      <div className="flex">
+        <button 
+          onClick={() => exportType === "html" ? exportAsHTML() : exportAsPDF()}
+          disabled={isExporting} 
+          className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-l-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50"
+        >
+          {isExporting ? (
+            <>Exporting... <RefreshCw className="h-3 w-3 animate-spin" /></>
+          ) : (
+            <>Export as {exportType.toUpperCase()} <Download className="h-3 w-3" /></>
+          )}
+        </button>
+        <button
+          onClick={() => setShowOptions(!showOptions)} 
+          className="px-1 py-1 text-xs font-medium rounded-r-md border-l border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          disabled={isExporting}
+        >
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </div>
+      
+      {showOptions && (
+        <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-neutral-100 z-10">
+          <button 
+            onClick={() => { setExportType("html"); setShowOptions(false); }}
+            className="w-full text-left px-3 py-2 hover:bg-neutral-50 text-xs flex items-center gap-2"
+          >
+            <Code className="h-3 w-3" /> HTML
+          </button>
+          <button 
+            onClick={() => { setExportType("pdf"); setShowOptions(false); }}
+            className="w-full text-left px-3 py-2 hover:bg-neutral-50 text-xs flex items-center gap-2"
+          >
+            <FileText className="h-3 w-3" /> PDF
+          </button>
+        </div>
       )}
-    </button>
+    </div>
   );
 };
+
+// Add this to the global Window interface
+declare global {
+  interface Window {
+    html2pdf: any;
+    html2canvas: any;
+    jspdf: any;
+  }
+}
 
 const Index = () => {
   const formSectionRef = useRef<HTMLDivElement>(null);
