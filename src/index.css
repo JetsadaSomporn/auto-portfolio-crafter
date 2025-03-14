@@ -65,11 +65,15 @@
   }
   
   .form-section {
-    @apply animate-fade-in opacity-0 animation-delay-[300ms] animation-fill-mode-forwards;
+    @apply animate-fade-in opacity-0;
+    animation-delay: 300ms;
+    animation-fill-mode: forwards;
   }
   
   .preview-section {
-    @apply animate-fade-in opacity-0 animation-delay-[500ms] animation-fill-mode-forwards;
+    @apply animate-fade-in opacity-0;
+    animation-delay: 500ms;
+    animation-fill-mode: forwards;
   }
   
   .form-container {

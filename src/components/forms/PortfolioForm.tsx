@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ThemeSelector from "@/components/ui/ThemeSelector";
 
 const PortfolioForm = () => {
-  const { portfolio, updateProfile, addSkill, updateSkill, removeSkill, addProject, updateProject, removeProject } = usePortfolio();
+  const { portfolio, updateProfile, addSkill, updateSkill, removeSkill, addProject, updateProject, removeProject, settings, updateSettings } = usePortfolio();
   const [newSkill, setNewSkill] = useState({ name: "", level: 50 });
   const [newProject, setNewProject] = useState({
     id: "",
@@ -482,8 +482,8 @@ const PortfolioForm = () => {
                 <select 
                   id="fontSize"
                   className="form-select"
-                  value={portfolio.settings?.fontSize || "medium"}
-                  onChange={(e) => updateSettings({ fontSize: e.target.value as any })}
+                  value={settings?.fontSize || "medium"}
+                  onChange={(e) => updateSettings({ fontSize: e.target.value as "small" | "medium" | "large" })}
                 >
                   <option value="small">Small</option>
                   <option value="medium">Medium</option>
@@ -496,8 +496,8 @@ const PortfolioForm = () => {
                 <select 
                   id="spacing"
                   className="form-select"
-                  value={portfolio.settings?.spacing || "normal"}
-                  onChange={(e) => updateSettings({ spacing: e.target.value as any })}
+                  value={settings?.spacing || "normal"}
+                  onChange={(e) => updateSettings({ spacing: e.target.value as "compact" | "normal" | "spacious" })}
                 >
                   <option value="compact">Compact</option>
                   <option value="normal">Normal</option>
@@ -510,7 +510,7 @@ const PortfolioForm = () => {
                   id="animations"
                   type="checkbox" 
                   className="form-checkbox"
-                  checked={portfolio.settings?.animation || true}
+                  checked={settings?.animation !== false}
                   onChange={(e) => updateSettings({ animation: e.target.checked })}
                 />
                 <label htmlFor="animations" className="input-label">Enable animations</label>
